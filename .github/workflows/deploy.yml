@@ -1,0 +1,58 @@
+name: DentiLens VPS Deployment CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-size: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Build Production Expo Web App
+        run: npx expo export --platform web
+
+      - name: Package Build Assets
+        run: tar -czf dist.tar.gz -C dist .
+
+      - name: Upload Deployment Assets to VPS (SCP)
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASS }}
+          source: "dist.tar.gz,vps-deploy/nginx.conf,vps-deploy/docker-compose.yml"
+          target: "/opt/dentilens/"
+
+      - name: Extract Build and Restart Web Server on VPS (SSH)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASS }}
+          script: |
+            mkdir -p /opt/dentilens/dist
+            rm -rf /opt/dentilens/dist/*
+            tar -xzf /opt/dentilens/dist.tar.gz -C /opt/dentilens/dist
+            rm /opt/dentilens/dist.tar.gz
+            mv /opt/dentilens/vps-deploy/nginx.conf /opt/dentilens/nginx.conf
+            mv /opt/dentilens/vps-deploy/docker-compose.yml /opt/dentilens/docker-compose.yml
+            rm -rf /opt/dentilens/vps-deploy
+            docker compose -f /opt/dentilens/docker-compose.yml up -d --remove-orphans
+            docker exec dentilens-nginx nginx -s reload || true

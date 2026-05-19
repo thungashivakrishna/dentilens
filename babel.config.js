@@ -1,10 +1,20 @@
 module.exports = function (api) {
   const isTest = api.env("test");
+  api.cache(true);
+
+  const presets = [
+    ["babel-preset-expo", { jsxImportSource: "nativewind" }]
+  ];
+
+  if (!isTest) {
+    presets.push("nativewind/babel");
+  }
+
   return {
-    presets: ["babel-preset-expo"],
+    presets,
     plugins: [
-      !isTest ? "nativewind/babel" : null,
       "react-native-worklets/plugin",
     ].filter(Boolean),
   };
 };
+
