@@ -14,12 +14,21 @@ describe("LoginScreen", () => {
     expect(getByPlaceholderText("••••••••")).toBeTruthy();
   });
 
-  it("navigates to dashboard on login press", () => {
+  it("navigates to dashboard on login press", async () => {
     const replaceMock = jest.fn();
     (useRouter as jest.Mock).mockReturnValue({ replace: replaceMock });
 
-    const { getByText } = render(<LoginScreen />);
+    const { getByPlaceholderText, getByText } = render(<LoginScreen />);
+    
+    // Fill in email and password fields to pass validation check
+    fireEvent.changeText(getByPlaceholderText("dr.smith@clinic.com"), "dr.smith@clinic.com");
+    fireEvent.changeText(getByPlaceholderText("••••••••"), "password123");
+    
+    // Press the login button
     fireEvent.press(getByText("Login"));
+
+    // Await promise loop tick for async sign-in execution
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(replaceMock).toHaveBeenCalledWith("/(tabs)");
   });

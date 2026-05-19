@@ -1,10 +1,48 @@
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { useState } from "react";
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Fingerprint, Mail, Lock, ArrowRight } from "lucide-react-native";
+import { supabase } from "../../services/supabase";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Missing Fields", "Please enter both your email and password.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        Alert.alert("Login Failed", error.message);
+      } else {
+        console.log("Logged in successfully:", data.user?.email);
+        router.replace("/(tabs)");
+      }
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBiometrics = () => {
+    Alert.alert(
+      "Biometric Sign-In",
+      "Would you like to enable secure fingerprint login? (Feature active on production clients)"
+    );
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -35,6 +73,10 @@ export default function LoginScreen() {
               <TextInput 
                 placeholder="dr.smith@clinic.com"
                 placeholderTextColor="#7A9190"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
                 className="flex-1 font-outfit text-sm text-ink"
               />
             </View>
@@ -48,6 +90,9 @@ export default function LoginScreen() {
                 placeholder="••••••••"
                 placeholderTextColor="#7A9190"
                 secureTextEntry
+                autoCapitalize="none"
+                value={password}
+                onChangeText={setPassword}
                 className="flex-1 font-outfit text-sm text-ink"
               />
             </View>
@@ -55,14 +100,24 @@ export default function LoginScreen() {
 
           <View className="flex-row gap-2.5">
             <TouchableOpacity 
-              onPress={() => router.replace("/(tabs)")}
-              className="flex-1 bg-teal p-4 rounded-xl items-center justify-center flex-row shadow-sm active:scale-[0.98]"
+              onPress={handleLogin}
+              disabled={loading}
+              className="flex-1 bg-teal p-4 rounded-xl items-center justify-center flex-row shadow-sm active:scale-[0.98] disabled:opacity-70"
             >
-              <Text className="text-white font-bold text-base mr-2">Login</Text>
-              <ArrowRight size={18} color="white" />
+              {loading ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <>
+                  <Text className="text-white font-bold text-base mr-2">Login</Text>
+                  <ArrowRight size={18} color="white" />
+                </>
+              )}
             </TouchableOpacity>
 
-            <TouchableOpacity className="w-14 h-14 bg-white border border-line rounded-xl items-center justify-center active:bg-teal-light">
+            <TouchableOpacity 
+              onPress={handleBiometrics}
+              className="w-14 h-14 bg-white border border-line rounded-xl items-center justify-center active:bg-teal-light"
+            >
               <Fingerprint size={24} color="#0D7B74" />
             </TouchableOpacity>
           </View>
@@ -72,7 +127,7 @@ export default function LoginScreen() {
               Don't have an account?{" "}
               <Text 
                 onPress={() => router.push("/(auth)/signup")}
-                className="text-teal font-semibold"
+                className="text-teal font-semibold font-outfit"
               >
                 Sign Up
               </Text>
@@ -83,3 +138,4 @@ export default function LoginScreen() {
     </KeyboardAvoidingView>
   );
 }
+
